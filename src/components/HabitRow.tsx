@@ -15,7 +15,7 @@ function HabitRow({
   habit,
   dates,
   onDelete,
-  onUpdate,
+  onUpdate: _onUpdate, // Prefix with _ to indicate intentionally unused
   onCompletionChange,
 }: HabitRowProps) {
   const [completions, setCompletions] = useState<Record<string, boolean>>({});
@@ -38,8 +38,10 @@ function HabitRow({
           try {
             const result = await completionsApi.getByHabitAndDate(habit.id, dateStr);
             // Handle both { completed: boolean } and full completion object
-            const isCompleted = result.completed === true || result.completed === 'true' || result.completed === 1 || result.completed === 't' || result.completed === 'T';
-            initialCompletions[dateStr] = isCompleted;
+            // Type assertion to handle various return types from API
+            const completed = result.completed as any;
+            const isCompleted = completed === true || completed === 'true' || completed === 1 || completed === 't' || completed === 'T';
+            initialCompletions[dateStr] = Boolean(isCompleted);
           } catch {
             initialCompletions[dateStr] = false;
           }
