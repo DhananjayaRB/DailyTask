@@ -57,9 +57,13 @@ router.get('/', async (req, res) => {
     }
     
     if (habitId) {
-      query += ` AND habit_id = $${paramCount}`;
-      params.push(habitId);
-      paramCount++;
+      // Convert habitId to integer
+      const habitIdInt = parseInt(habitId, 10);
+      if (!isNaN(habitIdInt)) {
+        query += ` AND habit_id = $${paramCount}`;
+        params.push(habitIdInt);
+        paramCount++;
+      }
     }
     
     query += ' ORDER BY date DESC';
@@ -103,19 +107,39 @@ router.get('/:habitId/:date', async (req, res) => {
       return res.status(400).json({ error: 'Invalid date format' });
     }
     
+    // Convert habitId to integer (database stores as integer)
+    const habitIdInt = parseInt(habitId, 10);
+    if (isNaN(habitIdInt)) {
+      return res.status(400).json({ error: 'Invalid habit ID' });
+    }
+    
     const result = await pool.query(
       'SELECT id, habit_id, date::text as date, completed, created_at, updated_at FROM completions WHERE habit_id = $1 AND date = $2',
-      [habitId, normalizedDate]
+      [habitIdInt, normalizedDate]
     );
     
     if (result.rows.length === 0) {
       return res.json({ completed: false });
     }
     
-    res.json(result.rows[0]);
+    // Return the completion status
+    const completion = result.rows[0];
+    res.json({ 
+      completed: completion.completed === true || completion.completed === 'true' || completion.completed === 1 || completion.completed === 't' || completion.completed === 'T'
+    });
   } catch (error) {
     console.error('Error fetching completion:', error);
-    res.status(500).json({ error: 'Failed to fetch completion' });
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      stack: error.stack
+    });
+    res.status(500).json({ 
+      error: 'Failed to fetch completion',
+      message: error.message,
+      code: error.code
+    });
   }
 });
 
@@ -134,19 +158,35 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Invalid date format. Expected YYYY-MM-DD' });
     }
     
+    // Convert habitId to integer (database stores as integer)
+    const habitIdInt = parseInt(habitId, 10);
+    if (isNaN(habitIdInt)) {
+      return res.status(400).json({ error: 'Invalid habit ID' });
+    }
+    
     const result = await pool.query(
       `INSERT INTO completions (habit_id, date, completed) 
        VALUES ($1, $2, $3) 
        ON CONFLICT (habit_id, date) 
        DO UPDATE SET completed = $3, updated_at = CURRENT_TIMESTAMP 
        RETURNING id, habit_id, date::text as date, completed, created_at, updated_at`,
-      [habitId, normalizedDate, completed]
+      [habitIdInt, normalizedDate, completed]
     );
     
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Error saving completion:', error);
-    res.status(500).json({ error: 'Failed to save completion' });
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      stack: error.stack
+    });
+    res.status(500).json({ 
+      error: 'Failed to save completion',
+      message: error.message,
+      code: error.code
+    });
   }
 });
 
