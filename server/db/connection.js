@@ -31,8 +31,9 @@ if (process.env.DATABASE_URL) {
     database: process.env.DB_NAME,
     password: process.env.DB_PASSWORD,
     port: parseInt(process.env.DB_PORT || '5432'),
-    // SSL configuration for remote databases
-    ssl: process.env.DB_HOST && !process.env.DB_HOST.includes('localhost') && !process.env.DB_HOST.includes('127.0.0.1') ? {
+    // SSL disabled - database server doesn't support SSL
+    // Set DB_SSL=true in environment variables if SSL is needed
+    ssl: process.env.DB_SSL === 'true' ? {
       rejectUnauthorized: false
     } : false,
     // Connection pool settings for serverless
@@ -68,6 +69,7 @@ console.log('Database config:', {
   database: poolConfig.database || (poolConfig.connectionString ? 'from connection string' : 'not set'),
   port: poolConfig.port,
   max: poolConfig.max,
+  ssl: poolConfig.ssl ? 'enabled' : 'disabled',
 });
 
 const pool = new Pool(poolConfig);
