@@ -8,15 +8,33 @@ router.get('/', async (req, res) => {
   try {
     const { mobile_number } = req.query;
     
-    let query = 'SELECT * FROM habits WHERE 1=1';
+    // Check if mobile_number column exists
+    let hasMobileColumn = true;
+    try {
+      await pool.query('SELECT mobile_number FROM habits LIMIT 1');
+    } catch (err) {
+      if (err.code === '42703') { // column does not exist
+        hasMobileColumn = false;
+      } else {
+        throw err;
+      }
+    }
+    
+    let query = 'SELECT * FROM habits';
     const params = [];
     
-    if (mobile_number) {
-      query += ' AND mobile_number = $1';
-      params.push(mobile_number);
+    if (hasMobileColumn) {
+      if (mobile_number) {
+        query += ' WHERE mobile_number = $1';
+        params.push(mobile_number);
+      } else {
+        // If no mobile_number provided, return empty array (security: don't show all users' habits)
+        return res.json([]);
+      }
     } else {
-      // If no mobile_number provided, return empty array (security: don't show all users' habits)
-      return res.json([]);
+      // Column doesn't exist yet - return all habits (backward compatibility)
+      // This allows the app to work before migration is run
+      console.warn('⚠️ mobile_number column does not exist. Returning all habits. Please run migration.');
     }
     
     query += ' ORDER BY created_at ASC';
@@ -64,14 +82,32 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Name and emoji are required' });
     }
     
-    if (!mobile_number) {
-      return res.status(400).json({ error: 'Mobile number is required' });
+    // Check if mobile_number column exists
+    let hasMobileColumn = true;
+    try {
+      await pool.query('SELECT mobile_number FROM habits LIMIT 1');
+    } catch (err) {
+      if (err.code === '42703') { // column does not exist
+        hasMobileColumn = false;
+        console.warn('⚠️ mobile_number column does not exist. Saving without mobile_number. Please run migration.');
+      } else {
+        throw err;
+      }
     }
     
-    const result = await pool.query(
-      'INSERT INTO habits (name, emoji, goal, color, mobile_number) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [name, emoji, goal || 30, color || 'blue', mobile_number]
-    );
+    let result;
+    if (hasMobileColumn && mobile_number) {
+      result = await pool.query(
+        'INSERT INTO habits (name, emoji, goal, color, mobile_number) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+        [name, emoji, goal || 30, color || 'blue', mobile_number]
+      );
+    } else {
+      // Fallback for backward compatibility
+      result = await pool.query(
+        'INSERT INTO habits (name, emoji, goal, color) VALUES ($1, $2, $3, $4) RETURNING *',
+        [name, emoji, goal || 30, color || 'blue']
+      );
+    }
     
     res.status(201).json(result.rows[0]);
   } catch (error) {

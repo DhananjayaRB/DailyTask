@@ -42,14 +42,35 @@ router.get('/', async (req, res) => {
     
     const { mobile_number } = req.query;
     
-    if (!mobile_number) {
-      // If no mobile_number provided, return empty array (security: don't show all users' completions)
-      return res.json([]);
+    // Check if mobile_number column exists
+    let hasMobileColumn = true;
+    try {
+      await pool.query('SELECT mobile_number FROM completions LIMIT 1');
+    } catch (err) {
+      if (err.code === '42703') { // column does not exist
+        hasMobileColumn = false;
+      } else {
+        throw err;
+      }
     }
     
-    let query = 'SELECT id, habit_id, date::text as date, completed, created_at, updated_at FROM completions WHERE mobile_number = $1';
-    const params = [mobile_number];
-    let paramCount = 2;
+    let query = 'SELECT id, habit_id, date::text as date, completed, created_at, updated_at FROM completions';
+    const params = [];
+    let paramCount = 1;
+    
+    if (hasMobileColumn) {
+      if (!mobile_number) {
+        // If no mobile_number provided, return empty array (security: don't show all users' completions)
+        return res.json([]);
+      }
+      query += ' WHERE mobile_number = $1';
+      params.push(mobile_number);
+      paramCount = 2;
+    } else {
+      // Column doesn't exist yet - return all completions (backward compatibility)
+      console.warn('⚠️ mobile_number column does not exist. Returning all completions. Please run migration.');
+      query += ' WHERE 1=1';
+    }
     
     if (startDate) {
       query += ` AND date >= $${paramCount}`;
@@ -109,10 +130,6 @@ router.get('/:habitId/:date', async (req, res) => {
     const { habitId, date } = req.params;
     const { mobile_number } = req.query;
     
-    if (!mobile_number) {
-      return res.status(400).json({ error: 'Mobile number is required' });
-    }
-    
     // Normalize date to YYYY-MM-DD format
     const normalizedDate = normalizeDate(date);
     if (!normalizedDate) {
@@ -125,10 +142,27 @@ router.get('/:habitId/:date', async (req, res) => {
       return res.status(400).json({ error: 'Invalid habit ID' });
     }
     
-    const result = await pool.query(
-      'SELECT id, habit_id, date::text as date, completed, created_at, updated_at FROM completions WHERE habit_id = $1 AND date = $2 AND mobile_number = $3',
-      [habitIdInt, normalizedDate, mobile_number]
-    );
+    // Check if mobile_number column exists
+    let hasMobileColumn = true;
+    let query = 'SELECT id, habit_id, date::text as date, completed, created_at, updated_at FROM completions WHERE habit_id = $1 AND date = $2';
+    let params = [habitIdInt, normalizedDate];
+    
+    try {
+      await pool.query('SELECT mobile_number FROM completions LIMIT 1');
+      if (mobile_number) {
+        query += ' AND mobile_number = $3';
+        params.push(mobile_number);
+      }
+    } catch (err) {
+      if (err.code === '42703') { // column does not exist
+        hasMobileColumn = false;
+        console.warn('⚠️ mobile_number column does not exist. Please run migration.');
+      } else {
+        throw err;
+      }
+    }
+    
+    const result = await pool.query(query, params);
     
     if (result.rows.length === 0) {
       return res.json({ completed: false });
@@ -164,10 +198,6 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'habitId, date, and completed are required' });
     }
     
-    if (!mobile_number) {
-      return res.status(400).json({ error: 'Mobile number is required' });
-    }
-    
     // Normalize date to YYYY-MM-DD format (local timezone)
     const normalizedDate = normalizeDate(date);
     if (!normalizedDate) {
@@ -180,14 +210,40 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Invalid habit ID' });
     }
     
-    const result = await pool.query(
-      `INSERT INTO completions (habit_id, date, completed, mobile_number) 
-       VALUES ($1, $2, $3, $4) 
-       ON CONFLICT (habit_id, mobile_number, date) 
-       DO UPDATE SET completed = $3, updated_at = CURRENT_TIMESTAMP 
-       RETURNING id, habit_id, date::text as date, completed, created_at, updated_at`,
-      [habitIdInt, normalizedDate, completed, mobile_number]
-    );
+    // Check if mobile_number column exists
+    let hasMobileColumn = true;
+    try {
+      await pool.query('SELECT mobile_number FROM completions LIMIT 1');
+    } catch (err) {
+      if (err.code === '42703') { // column does not exist
+        hasMobileColumn = false;
+        console.warn('⚠️ mobile_number column does not exist. Saving without mobile_number. Please run migration.');
+      } else {
+        throw err;
+      }
+    }
+    
+    let result;
+    if (hasMobileColumn && mobile_number) {
+      result = await pool.query(
+        `INSERT INTO completions (habit_id, date, completed, mobile_number) 
+         VALUES ($1, $2, $3, $4) 
+         ON CONFLICT (habit_id, mobile_number, date) 
+         DO UPDATE SET completed = $3, updated_at = CURRENT_TIMESTAMP 
+         RETURNING id, habit_id, date::text as date, completed, created_at, updated_at`,
+        [habitIdInt, normalizedDate, completed, mobile_number]
+      );
+    } else {
+      // Fallback for backward compatibility
+      result = await pool.query(
+        `INSERT INTO completions (habit_id, date, completed) 
+         VALUES ($1, $2, $3) 
+         ON CONFLICT (habit_id, date) 
+         DO UPDATE SET completed = $3, updated_at = CURRENT_TIMESTAMP 
+         RETURNING id, habit_id, date::text as date, completed, created_at, updated_at`,
+        [habitIdInt, normalizedDate, completed]
+      );
+    }
     
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -211,10 +267,6 @@ router.get('/stats/summary', async (req, res) => {
   try {
     let { startDate, endDate, mobile_number } = req.query;
     
-    if (!mobile_number) {
-      return res.status(400).json({ error: 'Mobile number is required' });
-    }
-    
     // Normalize dates to YYYY-MM-DD format
     if (startDate) {
       startDate = normalizeDate(startDate);
@@ -223,17 +275,37 @@ router.get('/stats/summary', async (req, res) => {
       endDate = normalizeDate(endDate);
     }
     
+    // Check if mobile_number column exists
+    let hasMobileColumn = true;
+    try {
+      await pool.query('SELECT mobile_number FROM completions LIMIT 1');
+    } catch (err) {
+      if (err.code === '42703') { // column does not exist
+        hasMobileColumn = false;
+        console.warn('⚠️ mobile_number column does not exist. Please run migration.');
+      } else {
+        throw err;
+      }
+    }
+    
     let query = `
       SELECT 
         COUNT(DISTINCT habit_id) as total_habits,
         COUNT(*) FILTER (WHERE completed = true) as total_completions,
         COUNT(*) as total_possible
       FROM completions
-      WHERE mobile_number = $1
     `;
     
-    const params = [mobile_number];
-    let paramCount = 2;
+    const params = [];
+    let paramCount = 1;
+    
+    if (hasMobileColumn && mobile_number) {
+      query += ' WHERE mobile_number = $1';
+      params.push(mobile_number);
+      paramCount = 2;
+    } else {
+      query += ' WHERE 1=1';
+    }
     
     if (startDate) {
       query += ` AND date >= $${paramCount}`;
