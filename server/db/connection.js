@@ -31,10 +31,17 @@ if (process.env.DATABASE_URL) {
     database: process.env.DB_NAME,
     password: process.env.DB_PASSWORD,
     port: parseInt(process.env.DB_PORT || '5432'),
+    // SSL configuration for remote databases
+    ssl: process.env.DB_HOST && !process.env.DB_HOST.includes('localhost') && !process.env.DB_HOST.includes('127.0.0.1') ? {
+      rejectUnauthorized: false
+    } : false,
     // Connection pool settings for serverless
-    max: 1,
+    max: 1, // Limit connections in serverless
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
+    connectionTimeoutMillis: 20000, // Increased for remote databases
+    // Additional settings for remote database connections
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
   };
 }
 

@@ -74,6 +74,16 @@ router.get('/', async (req, res) => {
       detail: error.detail,
       hint: error.hint
     });
+    
+    // Handle timeout errors specifically
+    if (error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET' || error.message.includes('timeout')) {
+      return res.status(504).json({ 
+        error: 'Database connection timeout',
+        message: 'The database request took too long. Please try again.',
+        code: error.code
+      });
+    }
+    
     res.status(500).json({ 
       error: 'Failed to fetch completions',
       message: error.message,
