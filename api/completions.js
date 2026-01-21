@@ -1,4 +1,6 @@
 // Vercel serverless function for completions API
+// Load environment variables at the top
+import '../server/db/connection.js'; // This will initialize the connection
 import completionsRouter from '../server/routes/completions.js';
 import express from 'express';
 import cors from 'cors';

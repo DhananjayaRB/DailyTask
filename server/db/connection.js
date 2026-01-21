@@ -1,7 +1,10 @@
 import pkg from 'pg';
 import dotenv from 'dotenv';
 
-dotenv.config();
+// Only load .env in development (not needed in Vercel where env vars are set directly)
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  dotenv.config();
+}
 
 const { Pool } = pkg;
 
@@ -37,9 +40,28 @@ if (process.env.DATABASE_URL) {
 
 // Validate configuration
 if (!poolConfig.connectionString && (!poolConfig.user || !poolConfig.host || !poolConfig.database)) {
-  console.error('❌ Database configuration missing!');
-  console.error('Required: DATABASE_URL or (DB_USER, DB_HOST, DB_NAME, DB_PASSWORD)');
+  const errorMsg = '❌ Database configuration missing! Required: DATABASE_URL or (DB_USER, DB_HOST, DB_NAME, DB_PASSWORD)';
+  console.error(errorMsg);
+  console.error('Current env vars:', {
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
+    hasDbUser: !!process.env.DB_USER,
+    hasDbHost: !!process.env.DB_HOST,
+    hasDbName: !!process.env.DB_NAME,
+    hasDbPassword: !!process.env.DB_PASSWORD ? '***' : false,
+    dbHost: process.env.DB_HOST,
+    dbName: process.env.DB_NAME,
+  });
+  throw new Error(errorMsg);
 }
+
+// Log configuration (without sensitive data)
+console.log('Database config:', {
+  hasConnectionString: !!poolConfig.connectionString,
+  host: poolConfig.host || (poolConfig.connectionString ? 'from connection string' : 'not set'),
+  database: poolConfig.database || (poolConfig.connectionString ? 'from connection string' : 'not set'),
+  port: poolConfig.port,
+  max: poolConfig.max,
+});
 
 const pool = new Pool(poolConfig);
 

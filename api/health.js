@@ -1,4 +1,6 @@
 // Vercel serverless function for health check
+// Load environment variables at the top
+import '../server/db/connection.js'; // This will initialize the connection
 import pool from '../server/db/connection.js';
 
 export default async function handler(req, res) {

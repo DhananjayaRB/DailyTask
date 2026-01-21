@@ -1,4 +1,6 @@
 // Vercel serverless function for habits API
+// Load environment variables at the top
+import '../server/db/connection.js'; // This will initialize the connection
 import habitsRouter from '../server/routes/habits.js';
 import express from 'express';
 import cors from 'cors';
