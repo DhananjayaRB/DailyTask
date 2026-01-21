@@ -2,9 +2,23 @@
 
 ## Database Migration Required
 
-Before using the app with mobile number filtering, you need to run the database migration:
+Before using the app with mobile number filtering, you need to run the database migration.
 
-### Step 1: Run Migration SQL
+### Option 1: Run Migration Script (Recommended)
+
+Run the migration script:
+
+```bash
+npm run migrate
+```
+
+This will automatically:
+- Add `mobile_number` column to `habits` table
+- Add `mobile_number` column to `completions` table
+- Create indexes for better performance
+- Update unique constraints
+
+### Option 2: Run Migration SQL Manually
 
 Connect to your PostgreSQL database and run:
 
