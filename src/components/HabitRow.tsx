@@ -37,20 +37,42 @@ function HabitRow({
       setIsLoading(true);
       const initialCompletions: Record<string, boolean> = {};
       
-      await Promise.all(
-        dateStrings.map(async (dateStr) => {
-          try {
-            const result = await completionsApi.getByHabitAndDate(habit.id, dateStr);
-            // Handle both { completed: boolean } and full completion object
-            // Type assertion to handle various return types from API
-            const completed = result.completed as any;
-            const isCompleted = completed === true || completed === 'true' || completed === 1 || completed === 't' || completed === 'T';
-            initialCompletions[dateStr] = Boolean(isCompleted);
-          } catch {
+      // Instead of multiple API calls, fetch all completions for the date range at once
+      if (dateStrings.length > 0) {
+        try {
+          const startDate = dateStrings[0];
+          const endDate = dateStrings[dateStrings.length - 1];
+          const allCompletions = await completionsApi.getAll({
+            startDate,
+            endDate,
+            habitId: habit.id,
+          });
+          
+          // Process all completions at once
+          dateStrings.forEach((dateStr) => {
+            const completion = allCompletions.find((c: any) => {
+              const completionDate = typeof c.date === 'string' 
+                ? c.date.split('T')[0].split(' ')[0] 
+                : formatDate(new Date(c.date));
+              return completionDate === dateStr;
+            });
+            
+            if (completion) {
+              const completed = completion.completed as any;
+              const isCompleted = completed === true || completed === 'true' || completed === 1 || completed === 't' || completed === 'T';
+              initialCompletions[dateStr] = Boolean(isCompleted);
+            } else {
+              initialCompletions[dateStr] = false;
+            }
+          });
+        } catch (error) {
+          console.error('Error loading completions:', error);
+          // Fallback: set all to false on error
+          dateStrings.forEach((dateStr) => {
             initialCompletions[dateStr] = false;
-          }
-        })
-      );
+          });
+        }
+      }
       
       setCompletions(initialCompletions);
     } catch (error) {

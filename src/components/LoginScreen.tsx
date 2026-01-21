@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import axios from 'axios';
 
 interface LoginScreenProps {
   onLogin: (userData: { name: string; mobile: string; uniqueNumber: string }) => void;
@@ -11,6 +12,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
   const [uniqueNumber, setUniqueNumber] = useState('');
   const [errors, setErrors] = useState<{ name?: string; mobile?: string; uniqueNumber?: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCheckingMobile, setIsCheckingMobile] = useState(false);
 
   const validateForm = () => {
     const newErrors: { name?: string; mobile?: string; uniqueNumber?: string } = {};
@@ -37,6 +39,20 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
     return Object.keys(newErrors).length === 0;
   };
 
+  const checkMobileExists = async (mobileNumber: string): Promise<boolean> => {
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:3001/api');
+      const response = await axios.get(`${API_BASE_URL}/users`, {
+        params: { mobile: mobileNumber }
+      });
+      return response.data.exists || false;
+    } catch (error) {
+      console.error('Error checking mobile:', error);
+      // If check fails, allow registration (fail open)
+      return false;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -45,6 +61,19 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
     }
 
     setIsSubmitting(true);
+    setIsCheckingMobile(true);
+
+    // Check if mobile number already exists
+    const mobileExists = await checkMobileExists(mobile.trim());
+    
+    if (mobileExists) {
+      setErrors({ mobile: 'This mobile number is already registered. Please use a different number.' });
+      setIsSubmitting(false);
+      setIsCheckingMobile(false);
+      return;
+    }
+
+    setIsCheckingMobile(false);
 
     // Simulate a small delay for better UX
     setTimeout(() => {
@@ -219,7 +248,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
               {isSubmitting ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                  Getting Started...
+                  {isCheckingMobile ? 'Checking...' : 'Getting Started...'}
                 </span>
               ) : (
                 'Get Started 🚀'

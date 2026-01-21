@@ -36,13 +36,14 @@ if (process.env.DATABASE_URL) {
     ssl: process.env.DB_SSL === 'true' ? {
       rejectUnauthorized: false
     } : false,
-    // Connection pool settings for serverless
-    max: 1, // Limit connections in serverless
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 20000, // Increased for remote databases
+    // Connection pool settings for serverless - very aggressive limits
+    max: 1, // Single connection per serverless function
+    min: 0, // Don't maintain idle connections
+    idleTimeoutMillis: 10000, // Close idle connections quickly
+    connectionTimeoutMillis: 5000, // Fail fast if can't connect
     // Additional settings for remote database connections
-    keepAlive: true,
-    keepAliveInitialDelayMillis: 10000,
+    keepAlive: false, // Disable keep-alive in serverless
+    allowExitOnIdle: true, // Allow process to exit when idle
   };
 }
 
@@ -87,6 +88,29 @@ pool.on('error', (err) => {
     process.exit(-1);
   }
 });
+
+// Helper function to ensure connections are properly released
+export const queryWithCleanup = async (text, params) => {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(text, params);
+    return result;
+  } finally {
+    client.release(); // Always release the connection
+  }
+};
+
+// Graceful shutdown for serverless
+if (process.env.VERCEL) {
+  // In serverless, we want to close connections quickly after use
+  process.on('beforeExit', async () => {
+    try {
+      await pool.end();
+    } catch (err) {
+      console.error('Error closing pool:', err);
+    }
+  });
+}
 
 export default pool;
 

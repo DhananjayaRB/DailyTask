@@ -6,7 +6,22 @@ const router = express.Router();
 // Get all habits
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM habits ORDER BY created_at ASC');
+    const { mobile_number } = req.query;
+    
+    let query = 'SELECT * FROM habits WHERE 1=1';
+    const params = [];
+    
+    if (mobile_number) {
+      query += ' AND mobile_number = $1';
+      params.push(mobile_number);
+    } else {
+      // If no mobile_number provided, return empty array (security: don't show all users' habits)
+      return res.json([]);
+    }
+    
+    query += ' ORDER BY created_at ASC';
+    
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching habits:', error);
@@ -43,15 +58,19 @@ router.get('/:id', async (req, res) => {
 // Create a new habit
 router.post('/', async (req, res) => {
   try {
-    const { name, emoji, goal, color } = req.body;
+    const { name, emoji, goal, color, mobile_number } = req.body;
     
     if (!name || !emoji) {
       return res.status(400).json({ error: 'Name and emoji are required' });
     }
     
+    if (!mobile_number) {
+      return res.status(400).json({ error: 'Mobile number is required' });
+    }
+    
     const result = await pool.query(
-      'INSERT INTO habits (name, emoji, goal, color) VALUES ($1, $2, $3, $4) RETURNING *',
-      [name, emoji, goal || 30, color || 'blue']
+      'INSERT INTO habits (name, emoji, goal, color, mobile_number) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [name, emoji, goal || 30, color || 'blue', mobile_number]
     );
     
     res.status(201).json(result.rows[0]);

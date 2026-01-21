@@ -11,6 +11,31 @@ const api = axios.create({
   },
 });
 
+// Helper to get mobile number from localStorage
+const getMobileNumber = (): string | null => {
+  try {
+    const userData = localStorage.getItem('daily_tracker_user');
+    if (userData) {
+      const user = JSON.parse(userData);
+      return user.mobile || null;
+    }
+  } catch {
+    // Ignore errors
+  }
+  return null;
+};
+
+// Add mobile number to all requests
+api.interceptors.request.use((config) => {
+  const mobile = getMobileNumber();
+  if (mobile && config.params) {
+    config.params.mobile_number = mobile;
+  } else if (mobile) {
+    config.params = { mobile_number: mobile };
+  }
+  return config;
+});
+
 // Habits API
 export const habitsApi = {
   getAll: async (): Promise<Habit[]> => {
@@ -23,8 +48,12 @@ export const habitsApi = {
     return response.data;
   },
 
-  create: async (habit: Omit<Habit, 'id'>): Promise<Habit> => {
-    const response = await api.post('/habits', habit);
+  create: async (habit: Omit<Habit, 'id'> & { mobile_number?: string }): Promise<Habit> => {
+    const mobile = getMobileNumber();
+    const response = await api.post('/habits', {
+      ...habit,
+      mobile_number: habit.mobile_number || mobile,
+    });
     return response.data;
   },
 
@@ -50,8 +79,12 @@ export const completionsApi = {
     return response.data;
   },
 
-  save: async (completion: { habitId: string; date: string; completed: boolean }): Promise<Completion> => {
-    const response = await api.post('/completions', completion);
+  save: async (completion: { habitId: string; date: string; completed: boolean; mobile_number?: string }): Promise<Completion> => {
+    const mobile = getMobileNumber();
+    const response = await api.post('/completions', {
+      ...completion,
+      mobile_number: completion.mobile_number || mobile,
+    });
     return response.data;
   },
 

@@ -12,10 +12,14 @@
       "source": "/api/completions/:path*",
       "destination": "/api/completions"
     },
-    {
-      "source": "/api/health",
-      "destination": "/api/health"
-    },
+      {
+        "source": "/api/health",
+        "destination": "/api/health"
+      },
+      {
+        "source": "/api/users/:path*",
+        "destination": "/api/users"
+      },
     {
       "source": "/(.*)",
       "destination": "/index.html"

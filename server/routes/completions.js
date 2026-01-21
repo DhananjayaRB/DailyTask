@@ -40,9 +40,16 @@ router.get('/', async (req, res) => {
       endDate = normalizeDate(endDate);
     }
     
-    let query = 'SELECT id, habit_id, date::text as date, completed, created_at, updated_at FROM completions WHERE 1=1';
-    const params = [];
-    let paramCount = 1;
+    const { mobile_number } = req.query;
+    
+    if (!mobile_number) {
+      // If no mobile_number provided, return empty array (security: don't show all users' completions)
+      return res.json([]);
+    }
+    
+    let query = 'SELECT id, habit_id, date::text as date, completed, created_at, updated_at FROM completions WHERE mobile_number = $1';
+    const params = [mobile_number];
+    let paramCount = 2;
     
     if (startDate) {
       query += ` AND date >= $${paramCount}`;
@@ -100,6 +107,11 @@ router.get('/', async (req, res) => {
 router.get('/:habitId/:date', async (req, res) => {
   try {
     const { habitId, date } = req.params;
+    const { mobile_number } = req.query;
+    
+    if (!mobile_number) {
+      return res.status(400).json({ error: 'Mobile number is required' });
+    }
     
     // Normalize date to YYYY-MM-DD format
     const normalizedDate = normalizeDate(date);
@@ -114,8 +126,8 @@ router.get('/:habitId/:date', async (req, res) => {
     }
     
     const result = await pool.query(
-      'SELECT id, habit_id, date::text as date, completed, created_at, updated_at FROM completions WHERE habit_id = $1 AND date = $2',
-      [habitIdInt, normalizedDate]
+      'SELECT id, habit_id, date::text as date, completed, created_at, updated_at FROM completions WHERE habit_id = $1 AND date = $2 AND mobile_number = $3',
+      [habitIdInt, normalizedDate, mobile_number]
     );
     
     if (result.rows.length === 0) {
@@ -146,10 +158,14 @@ router.get('/:habitId/:date', async (req, res) => {
 // Create or update a completion
 router.post('/', async (req, res) => {
   try {
-    const { habitId, date, completed } = req.body;
+    const { habitId, date, completed, mobile_number } = req.body;
     
     if (!habitId || !date || typeof completed !== 'boolean') {
       return res.status(400).json({ error: 'habitId, date, and completed are required' });
+    }
+    
+    if (!mobile_number) {
+      return res.status(400).json({ error: 'Mobile number is required' });
     }
     
     // Normalize date to YYYY-MM-DD format (local timezone)
@@ -165,12 +181,12 @@ router.post('/', async (req, res) => {
     }
     
     const result = await pool.query(
-      `INSERT INTO completions (habit_id, date, completed) 
-       VALUES ($1, $2, $3) 
-       ON CONFLICT (habit_id, date) 
+      `INSERT INTO completions (habit_id, date, completed, mobile_number) 
+       VALUES ($1, $2, $3, $4) 
+       ON CONFLICT (habit_id, mobile_number, date) 
        DO UPDATE SET completed = $3, updated_at = CURRENT_TIMESTAMP 
        RETURNING id, habit_id, date::text as date, completed, created_at, updated_at`,
-      [habitIdInt, normalizedDate, completed]
+      [habitIdInt, normalizedDate, completed, mobile_number]
     );
     
     res.status(201).json(result.rows[0]);
@@ -193,7 +209,11 @@ router.post('/', async (req, res) => {
 // Get statistics
 router.get('/stats/summary', async (req, res) => {
   try {
-    let { startDate, endDate } = req.query;
+    let { startDate, endDate, mobile_number } = req.query;
+    
+    if (!mobile_number) {
+      return res.status(400).json({ error: 'Mobile number is required' });
+    }
     
     // Normalize dates to YYYY-MM-DD format
     if (startDate) {
@@ -209,11 +229,11 @@ router.get('/stats/summary', async (req, res) => {
         COUNT(*) FILTER (WHERE completed = true) as total_completions,
         COUNT(*) as total_possible
       FROM completions
-      WHERE 1=1
+      WHERE mobile_number = $1
     `;
     
-    const params = [];
-    let paramCount = 1;
+    const params = [mobile_number];
+    let paramCount = 2;
     
     if (startDate) {
       query += ` AND date >= $${paramCount}`;

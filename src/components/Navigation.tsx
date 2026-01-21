@@ -1,7 +1,17 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { userStorage } from '../utils/userStorage';
 
 export default function Navigation() {
   const location = useLocation();
+  const [userName, setUserName] = useState<string>('');
+
+  useEffect(() => {
+    const user = userStorage.getUser();
+    if (user) {
+      setUserName(user.name);
+    }
+  }, []);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -23,6 +33,13 @@ export default function Navigation() {
             <span className="hidden sm:inline">Daily Tracker</span>
             <span className="sm:hidden">Tracker</span>
           </Link>
+          
+          {userName && (
+            <div className="hidden sm:flex items-center gap-2 text-xs text-gray-600">
+              <span className="text-gray-400">👤</span>
+              <span className="font-medium">{userName}</span>
+            </div>
+          )}
           
           <div className="flex items-center gap-0.5 sm:gap-1">
             {navItems.map((item) => (
