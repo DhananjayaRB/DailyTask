@@ -10,7 +10,16 @@ router.get('/', async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching habits:', error);
-    res.status(500).json({ error: 'Failed to fetch habits' });
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail
+    });
+    res.status(500).json({ 
+      error: 'Failed to fetch habits',
+      message: error.message,
+      code: error.code
+    });
   }
 });
 

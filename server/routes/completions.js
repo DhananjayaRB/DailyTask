@@ -68,7 +68,17 @@ router.get('/', async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching completions:', error);
-    res.status(500).json({ error: 'Failed to fetch completions' });
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint
+    });
+    res.status(500).json({ 
+      error: 'Failed to fetch completions',
+      message: error.message,
+      code: error.code
+    });
   }
 });
 
