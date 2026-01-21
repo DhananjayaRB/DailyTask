@@ -1,0 +1,16 @@
+node_modules
+server/node_modules
+*.log
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.DS_Store
+*.md
+!README.md
+server/db/setup-*.sql
+server/db/schema.sql
+MANUAL_DB_SETUP.md
+PWA_SETUP.md
+SETUP.md
+
