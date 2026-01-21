@@ -20,6 +20,10 @@
         "source": "/api/users/:path*",
         "destination": "/api/users"
       },
+      {
+        "source": "/api/init-user",
+        "destination": "/api/init-user"
+      },
     {
       "source": "/(.*)",
       "destination": "/index.html"

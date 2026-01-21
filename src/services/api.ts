@@ -100,3 +100,9 @@ export const healthCheck = async (): Promise<{ status: string; database: string 
   return response.data;
 };
 
+// Initialize user with default habits
+export const initUser = async (mobileNumber: string): Promise<{ message: string; habitsCount: number }> => {
+  const response = await api.post('/init-user', { mobile_number: mobileNumber });
+  return response.data;
+};
+

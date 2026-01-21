@@ -6,6 +6,7 @@ import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 import LoginScreen from './components/LoginScreen';
 import { userStorage } from './utils/userStorage';
+import { initUser } from './services/api';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -18,8 +19,18 @@ function App() {
     setIsChecking(false);
   }, []);
 
-  const handleLogin = (userData: { name: string; mobile: string; uniqueNumber: string }) => {
+  const handleLogin = async (userData: { name: string; mobile: string; uniqueNumber: string }) => {
     userStorage.saveUser(userData);
+    
+    // Initialize user with default habits
+    try {
+      await initUser(userData.mobile);
+      console.log('✅ Default habits initialized for user');
+    } catch (error) {
+      console.error('Error initializing default habits:', error);
+      // Don't block login if initialization fails
+    }
+    
     setIsLoggedIn(true);
   };
 

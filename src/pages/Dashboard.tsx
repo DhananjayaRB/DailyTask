@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import HabitTracker from '../components/HabitTracker';
 import { Habit } from '../types';
-import { habitsApi } from '../services/api';
+import { habitsApi, initUser } from '../services/api';
+import { userStorage } from '../utils/userStorage';
 
 export default function Dashboard() {
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -10,6 +11,28 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadHabits();
+    
+    // Initialize user with default habits if they don't have any
+    const initializeUser = async () => {
+      try {
+        const user = userStorage.getUser();
+        if (user) {
+          const habits = await habitsApi.getAll();
+          if (habits.length === 0) {
+            // User has no habits, initialize with defaults
+            await initUser(user.mobile);
+            // Reload habits after initialization
+            setTimeout(() => {
+              loadHabits();
+            }, 500);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking user initialization:', error);
+      }
+    };
+    
+    initializeUser();
   }, []);
 
   const loadHabits = async () => {
