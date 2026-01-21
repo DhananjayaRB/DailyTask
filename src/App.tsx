@@ -4,7 +4,7 @@ import Navigation from './components/Navigation';
 import Dashboard from './pages/Dashboard';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
-import LoginScreen from './components/LoginScreen';
+import AuthScreen from './components/AuthScreen';
 import { userStorage } from './utils/userStorage';
 import { initUser } from './services/api';
 
@@ -46,9 +46,9 @@ function App() {
     );
   }
 
-  // Show login screen if not logged in
+  // Show login/register screen if not logged in
   if (!isLoggedIn) {
-    return <LoginScreen onLogin={handleLogin} />;
+    return <AuthScreen onLogin={handleLogin} />;
   }
 
   // Show main app if logged in

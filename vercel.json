@@ -21,6 +21,10 @@
         "destination": "/api/users"
       },
       {
+        "source": "/api/users",
+        "destination": "/api/users"
+      },
+      {
         "source": "/api/init-user",
         "destination": "/api/init-user"
       },

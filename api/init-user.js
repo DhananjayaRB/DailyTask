@@ -24,18 +24,32 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Mobile number is required' });
     }
 
-    // Check if user already has habits (to avoid duplicates)
-    const existingHabits = await pool.query(
-      'SELECT COUNT(*) as count FROM habits WHERE mobile_number = $1',
-      [mobile_number]
-    );
+    // Check if mobile_number column exists
+    let hasMobileColumn = true;
+    try {
+      await pool.query('SELECT mobile_number FROM habits LIMIT 1');
+    } catch (err) {
+      if (err.code === '42703') {
+        hasMobileColumn = false;
+      } else {
+        throw err;
+      }
+    }
+    
+    if (hasMobileColumn) {
+      // Check if user already has habits (to avoid duplicates)
+      const existingHabits = await pool.query(
+        'SELECT COUNT(*) as count FROM habits WHERE mobile_number = $1',
+        [mobile_number]
+      );
 
-    if (parseInt(existingHabits.rows[0].count) > 0) {
-      // User already has habits, skip initialization
-      return res.status(200).json({ 
-        message: 'User already initialized',
-        habitsCount: parseInt(existingHabits.rows[0].count)
-      });
+      if (parseInt(existingHabits.rows[0].count) > 0) {
+        // User already has habits, skip initialization
+        return res.status(200).json({ 
+          message: 'User already initialized',
+          habitsCount: parseInt(existingHabits.rows[0].count)
+        });
+      }
     }
 
     // Default habits to copy
