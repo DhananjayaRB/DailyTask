@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { habitsApi } from '../services/api';
 import { Habit } from '../types';
 import AddHabitModal from '../components/AddHabitModal';
+import { userStorage } from '../utils/userStorage';
 
 export default function Settings() {
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -171,6 +172,26 @@ export default function Settings() {
               <span>Version 2.0 • Built with React, TypeScript, and PostgreSQL</span>
             </p>
           </div>
+        </div>
+
+        {/* Logout Section */}
+        <div className="mt-6 bg-white rounded-xl p-6 border border-surface-border shadow-soft">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <span>🔐</span>
+            <span>Account</span>
+          </h2>
+          <button
+            onClick={() => {
+              if (window.confirm('Are you sure you want to logout?')) {
+                userStorage.clearUser();
+                window.location.href = '/';
+              }
+            }}
+            className="w-full sm:w-auto px-4 py-2.5 text-sm font-medium text-danger-600 hover:text-white hover:bg-danger-600 rounded-lg transition-colors duration-200 border border-danger-300 hover:border-danger-600 flex items-center justify-center gap-2"
+          >
+            <span>🚪</span>
+            <span>Logout</span>
+          </button>
         </div>
 
         {showAddModal && (

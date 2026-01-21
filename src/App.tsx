@@ -34,6 +34,10 @@ function App() {
     setIsLoggedIn(true);
   };
 
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+  };
+
   // Show loading state while checking login status
   if (isChecking) {
     return (
@@ -55,7 +59,7 @@ function App() {
   return (
     <Router>
       <div className="min-h-screen bg-surface-bg text-gray-900">
-        <Navigation />
+        <Navigation onLogout={handleLogout} />
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/analytics" element={<Analytics />} />
