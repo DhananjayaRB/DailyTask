@@ -12,6 +12,8 @@ app.use(express.json());
 // Mount router at root since Vercel routes /api/habits/* to this function
 app.use('/', habitsRouter);
 
-// Export as Vercel serverless function
-export default app;
+// Vercel serverless function handler
+export default function handler(req, res) {
+  return app(req, res);
+}
 
