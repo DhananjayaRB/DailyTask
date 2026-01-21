@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { habitsApi, completionsApi } from '../services/api';
 import { Habit } from '../types';
+import { motion } from 'framer-motion';
+import CountUp from '../components/animations/CountUp';
 
 export default function Analytics() {
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -117,37 +119,60 @@ export default function Analytics() {
           <>
             {/* Overall Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
-              <div className="bg-white rounded-xl p-4 sm:p-6 border border-surface-border shadow-soft">
+              <motion.div 
+                className="bg-white rounded-xl p-4 sm:p-6 border border-surface-border shadow-soft"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.1 }}
+              >
                 <div className="text-gray-500 text-xs sm:text-sm font-medium mb-1 flex items-center gap-1.5">
                   <span>📊</span>
                   <span>Overall Progress</span>
                 </div>
-                <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">{stats.overallProgress}%</div>
+                <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
+                  <CountUp value={stats.overallProgress} />%
+                </div>
                 <div className="w-full bg-gray-100 rounded-full h-2">
-                  <div
-                    className="bg-primary-600 h-2 rounded-full transition-all duration-500"
-                    style={{ width: `${stats.overallProgress}%` }}
+                  <motion.div
+                    className="bg-primary-600 h-2 rounded-full"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${stats.overallProgress}%` }}
+                    transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
                   />
                 </div>
-              </div>
-              <div className="bg-white rounded-xl p-4 sm:p-6 border border-surface-border shadow-soft">
+              </motion.div>
+              <motion.div 
+                className="bg-white rounded-xl p-4 sm:p-6 border border-surface-border shadow-soft"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.15 }}
+              >
                 <div className="text-gray-500 text-xs sm:text-sm font-medium mb-1 flex items-center gap-1.5">
                   <span>✅</span>
                   <span>Total Completions</span>
                 </div>
-                <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.totalCompletions}</div>
+                <div className="text-2xl sm:text-3xl font-bold text-gray-900">
+                  <CountUp value={stats.totalCompletions} />
+                </div>
                 <div className="text-gray-400 text-xs mt-1">
                   out of {stats.totalPossible} possible
                 </div>
-              </div>
-              <div className="bg-white rounded-xl p-4 sm:p-6 border border-surface-border shadow-soft">
+              </motion.div>
+              <motion.div 
+                className="bg-white rounded-xl p-4 sm:p-6 border border-surface-border shadow-soft"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.2 }}
+              >
                 <div className="text-gray-500 text-xs sm:text-sm font-medium mb-1 flex items-center gap-1.5">
                   <span>📋</span>
                   <span>Active Habits</span>
                 </div>
-                <div className="text-2xl sm:text-3xl font-bold text-gray-900">{habits.length}</div>
+                <div className="text-2xl sm:text-3xl font-bold text-gray-900">
+                  <CountUp value={habits.length} />
+                </div>
                 <div className="text-gray-400 text-xs mt-1">habits tracked</div>
-              </div>
+              </motion.div>
             </div>
 
             {/* Habit Performance */}
@@ -172,7 +197,9 @@ export default function Analytics() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-lg font-semibold text-gray-900">{stat.completionRate}%</div>
+                        <div className="text-lg font-semibold text-gray-900">
+                          <CountUp value={stat.completionRate} />%
+                        </div>
                         <div className="text-xs text-gray-500">Completion</div>
                       </div>
                     </div>
@@ -183,21 +210,25 @@ export default function Analytics() {
                           <span>{stat.completionRate}%</span>
                         </div>
                         <div className="w-full bg-gray-100 rounded-full h-1.5">
-                          <div
-                            className="bg-primary-600 h-1.5 rounded-full transition-all duration-500"
-                            style={{ width: `${stat.completionRate}%` }}
+                          <motion.div
+                            className="bg-primary-600 h-1.5 rounded-full"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${stat.completionRate}%` }}
+                            transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
                           />
                         </div>
                       </div>
                       <div>
                         <div className="flex justify-between text-xs text-gray-500 mb-1">
                           <span>Goal Progress ({stat.habit.goal} days)</span>
-                          <span>{stat.goalProgress}%</span>
+                          <span><CountUp value={stat.goalProgress} />%</span>
                         </div>
                         <div className="w-full bg-gray-100 rounded-full h-1.5">
-                          <div
-                            className="bg-success-500 h-1.5 rounded-full transition-all duration-500"
-                            style={{ width: `${stat.goalProgress}%` }}
+                          <motion.div
+                            className="bg-success-500 h-1.5 rounded-full"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${stat.goalProgress}%` }}
+                            transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
                           />
                         </div>
                       </div>

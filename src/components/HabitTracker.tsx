@@ -6,6 +6,8 @@ import HabitRow from './HabitRow';
 import ProgressChart from './ProgressChart';
 import AddHabitModal from './AddHabitModal';
 import ViewToggle from './ViewToggle';
+import { motion } from 'framer-motion';
+import CountUp from './animations/CountUp';
 
 interface HabitTrackerProps {
   habits: Habit[];
@@ -141,35 +143,61 @@ export default function HabitTracker({
     <div className="space-y-3">
       {/* Summary Cards - Compact */}
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
-        <div className="bg-white rounded-lg p-3 border border-surface-border shadow-sm">
+        <motion.div 
+          className="bg-white rounded-lg p-3 border border-surface-border shadow-sm"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.1 }}
+        >
           <div className="flex items-center gap-2 mb-1">
             <span className="text-base">📋</span>
             <div className="text-gray-500 text-xs font-medium">Total Habits</div>
           </div>
-          <div className="text-xl sm:text-2xl font-bold text-gray-900">{habits.length}</div>
-        </div>
-        <div className="bg-white rounded-lg p-3 border border-surface-border shadow-sm">
+          <div className="text-xl sm:text-2xl font-bold text-gray-900">
+            {isLoadingStats ? '⏳' : <CountUp value={habits.length} />}
+          </div>
+        </motion.div>
+        <motion.div 
+          className="bg-white rounded-lg p-3 border border-surface-border shadow-sm"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.15 }}
+        >
           <div className="flex items-center gap-2 mb-1">
             <span className="text-base">✅</span>
             <div className="text-gray-500 text-xs font-medium">Completed Today</div>
           </div>
           <div className="text-xl sm:text-2xl font-bold text-gray-900">
-            {isLoadingStats ? '⏳' : summaryStats.completedToday}
+            {isLoadingStats ? '⏳' : <CountUp value={summaryStats.completedToday} />}
           </div>
-        </div>
-        <div className="bg-white rounded-lg p-3 border border-surface-border shadow-sm">
+        </motion.div>
+        <motion.div 
+          className="bg-white rounded-lg p-3 border border-surface-border shadow-sm"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.2 }}
+        >
           <div className="flex items-center gap-2 mb-1">
             <span className="text-base">📊</span>
             <div className="text-gray-500 text-xs font-medium">Weekly Progress</div>
           </div>
           <div className="text-xl sm:text-2xl font-bold text-gray-900">
-            {isLoadingStats ? '⏳' : `${summaryStats.progress}%`}
+            {isLoadingStats ? '⏳' : (
+              <>
+                <CountUp value={summaryStats.progress} />%
+              </>
+            )}
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Main Tracker Card - Compact */}
-      <div className="bg-white rounded-lg border border-surface-border shadow-sm">
+      <motion.div 
+        className="bg-white rounded-lg border border-surface-border shadow-sm"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.25 }}
+      >
         {/* Header - Compact */}
         <div className="p-2 sm:p-3 border-b border-surface-border">
           <div className="flex items-center justify-between gap-2">
@@ -221,11 +249,29 @@ export default function HabitTracker({
         {/* Habits Table - Compact */}
         <div className="overflow-x-auto scrollbar-thin">
           {habits.length === 0 ? (
-            <div className="p-6 text-center">
-              <div className="text-4xl mb-2">📝</div>
+            <motion.div 
+              className="p-6 text-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              <motion.div 
+                className="text-4xl mb-2"
+                animate={{ 
+                  scale: [1, 1.1, 1],
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  repeatType: 'reverse',
+                  ease: [0.4, 0, 0.2, 1],
+                }}
+              >
+                📝
+              </motion.div>
               <p className="text-gray-500 text-xs mb-1">No habits yet</p>
-              <p className="text-gray-400 text-xs">Click "➕ Add" to get started</p>
-            </div>
+              <p className="text-gray-400 text-xs">Start with just one habit today.</p>
+            </motion.div>
           ) : (
             <div className="min-w-full">
               <table className="w-full text-sm">
@@ -282,7 +328,7 @@ export default function HabitTracker({
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {showAddModal && (
         <AddHabitModal

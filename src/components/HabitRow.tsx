@@ -1,7 +1,8 @@
 import { Habit } from '../types';
 import { formatDate, isToday } from '../utils/dates';
 import { completionsApi } from '../services/api';
-import { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
+import { motion } from 'framer-motion';
 
 interface HabitRowProps {
   habit: Habit;
@@ -20,6 +21,9 @@ function HabitRow({
 }: HabitRowProps) {
   const [completions, setCompletions] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [animatedCheckbox, setAnimatedCheckbox] = useState<string | null>(null);
+  const [highlightedRow, setHighlightedRow] = useState(false);
+  const previousCompletions = useRef<Record<string, boolean>>({});
 
   // Memoize date strings to prevent unnecessary recalculations
   const dateStrings = useMemo(() => dates.map(d => formatDate(d)), [dates]);
@@ -61,10 +65,23 @@ function HabitRow({
     const newCompleted = !completions[dateStr];
     
     // Optimistic update
-    setCompletions((prev) => ({
-      ...prev,
-      [dateStr]: newCompleted,
-    }));
+    setCompletions((prev) => {
+      previousCompletions.current = { ...prev };
+      return {
+        ...prev,
+        [dateStr]: newCompleted,
+      };
+    });
+
+    // Trigger animation
+    if (newCompleted) {
+      setAnimatedCheckbox(dateStr);
+      setHighlightedRow(true);
+      setTimeout(() => {
+        setAnimatedCheckbox(null);
+        setHighlightedRow(false);
+      }, 400);
+    }
 
     try {
       await completionsApi.save({
@@ -100,7 +117,13 @@ function HabitRow({
   );
 
   return (
-    <tr className="border-b border-surface-border hover:bg-gray-50/50 transition-colors duration-150">
+    <motion.tr 
+      className="border-b border-surface-border hover:bg-gray-50/50 transition-colors duration-150"
+      animate={highlightedRow ? {
+        backgroundColor: 'rgba(99, 102, 241, 0.05)',
+      } : {}}
+      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+    >
       <td className="p-2 sticky left-0 bg-white z-10">
         <div className="flex items-center gap-1.5">
           <span className="text-sm">{habit.emoji}</span>
@@ -131,12 +154,11 @@ function HabitRow({
             className={`p-1.5 text-center align-middle ${today ? 'bg-primary-50/50' : ''}`}
           >
             <div className="flex items-center justify-center">
-              <button
+              <motion.button
                 onClick={() => handleToggle(date)}
                 disabled={isLoading}
                 className={`
                   w-6 h-6 rounded-md flex items-center justify-center
-                  transition-all duration-200
                   disabled:opacity-50 disabled:cursor-not-allowed
                   ${completed
                     ? 'bg-primary-600 text-white shadow-sm'
@@ -145,13 +167,44 @@ function HabitRow({
                   ${today ? 'ring-2 ring-primary-200 ring-offset-1' : ''}
                 `}
                 title={`${dateStr} - ${completed ? 'Completed' : 'Not completed'}`}
+                animate={animatedCheckbox === dateStr && completed ? {
+                  scale: [1, 1.08, 1],
+                } : {}}
+                transition={{
+                  duration: 0.3,
+                  ease: [0.4, 0, 0.2, 1],
+                }}
               >
                 {completed && (
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                  </svg>
+                  <motion.svg 
+                    className="w-3.5 h-3.5" 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{
+                      duration: 0.3,
+                      ease: [0.4, 0, 0.2, 1],
+                      delay: 0.05,
+                    }}
+                  >
+                    <motion.path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={3} 
+                      d="M5 13l4 4L19 7"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{
+                        duration: 0.3,
+                        ease: [0.4, 0, 0.2, 1],
+                        delay: 0.05,
+                      }}
+                    />
+                  </motion.svg>
                 )}
-              </button>
+              </motion.button>
             </div>
           </td>
         );
@@ -159,17 +212,31 @@ function HabitRow({
       <td className="p-2">
         <div className="flex items-center gap-1.5">
           <div className="flex-1 bg-gray-200 rounded-full h-1.5 overflow-hidden min-w-[30px]">
-            <div
-              className="bg-primary-500 h-full rounded-full transition-all duration-300 ease-out"
-              style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+            <motion.div
+              className="bg-primary-500 h-full rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+              transition={{
+                duration: 0.5,
+                ease: [0.4, 0, 0.2, 1],
+              }}
             />
           </div>
-          <span className="text-[10px] text-gray-600 min-w-[28px] text-right font-medium">
+          <motion.span 
+            className="text-[10px] text-gray-600 min-w-[28px] text-right font-medium"
+            key={Math.round(progress)}
+            initial={{ scale: 1 }}
+            animate={{ scale: [1, 1.1, 1] }}
+            transition={{
+              duration: 0.3,
+              ease: [0.4, 0, 0.2, 1],
+            }}
+          >
             {Math.round(progress)}%
-          </span>
+          </motion.span>
         </div>
       </td>
-    </tr>
+    </motion.tr>
   );
 }
 

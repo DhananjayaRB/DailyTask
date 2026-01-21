@@ -1,7 +1,11 @@
-import { useState, useEffect, useMemo, memo } from 'react';
+import { useState, useEffect, useMemo, memo, useRef } from 'react';
 import { Habit } from '../types';
 import { formatDate, isToday } from '../utils/dates';
 import { completionsApi } from '../services/api';
+import { motion } from 'framer-motion';
+import CelebrationToast from './animations/CelebrationToast';
+import ConfettiBurst from './animations/ConfettiBurst';
+import ProgressPulse from './animations/ProgressPulse';
 
 interface ProgressChartProps {
   dates: Date[];
@@ -12,6 +16,11 @@ interface ProgressChartProps {
 function ProgressChart({ dates, habits, refreshKey = 0 }: ProgressChartProps) {
   const [dailyProgress, setDailyProgress] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showDailyCelebration, setShowDailyCelebration] = useState(false);
+  const [showWeeklyCelebration, setShowWeeklyCelebration] = useState(false);
+  const [weeklyCelebrationMessage, setWeeklyCelebrationMessage] = useState('');
+  const [confettiTrigger, setConfettiTrigger] = useState(0);
+  const previousProgress = useRef<any[]>([]);
 
   // Memoize date range
   const dateRange = useMemo(() => ({
@@ -62,6 +71,35 @@ function ProgressChart({ dates, habits, refreshKey = 0 }: ProgressChartProps) {
         };
       });
 
+      // Check for daily completion (100%)
+      const todayProgress = progress.find(p => isToday(p.dateObj));
+      if (todayProgress && todayProgress.percentage === 100) {
+        const prevToday = previousProgress.current.find(p => isToday(p.dateObj));
+        if (!prevToday || prevToday.percentage < 100) {
+          setShowDailyCelebration(true);
+          setConfettiTrigger(prev => prev + 1);
+        }
+      }
+
+      // Check for weekly milestones
+      const totalProgress = progress.reduce((sum, p) => sum + p.percentage, 0) / progress.length;
+      const prevTotalProgress = previousProgress.current.length > 0
+        ? previousProgress.current.reduce((sum, p) => sum + p.percentage, 0) / previousProgress.current.length
+        : 0;
+
+      if (totalProgress >= 50 && prevTotalProgress < 50) {
+        setWeeklyCelebrationMessage('🔥 Halfway There');
+        setShowWeeklyCelebration(true);
+      } else if (totalProgress >= 75 && prevTotalProgress < 75) {
+        setWeeklyCelebrationMessage('💪 Almost Done');
+        setShowWeeklyCelebration(true);
+      } else if (totalProgress === 100 && prevTotalProgress < 100) {
+        setWeeklyCelebrationMessage('🏆 Weekly Goal Achieved');
+        setShowWeeklyCelebration(true);
+        setConfettiTrigger(prev => prev + 1);
+      }
+
+      previousProgress.current = progress;
       setDailyProgress(progress);
     } catch (error) {
       console.error('Error loading progress:', error);
@@ -103,6 +141,21 @@ function ProgressChart({ dates, habits, refreshKey = 0 }: ProgressChartProps) {
 
   return (
     <div>
+      <ConfettiBurst trigger={confettiTrigger} particleCount={25} />
+      <CelebrationToast
+        message="🎉 Day Completed!"
+        emoji="🎉"
+        isVisible={showDailyCelebration}
+        onDismiss={() => setShowDailyCelebration(false)}
+        duration={1500}
+      />
+      <CelebrationToast
+        message={weeklyCelebrationMessage}
+        emoji={weeklyCelebrationMessage.split(' ')[0]}
+        isVisible={showWeeklyCelebration}
+        onDismiss={() => setShowWeeklyCelebration(false)}
+        duration={1500}
+      />
       <h3 className="text-xs font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
         <span>📈</span>
         <span>Daily Progress</span>
@@ -114,18 +167,28 @@ function ProgressChart({ dates, habits, refreshKey = 0 }: ProgressChartProps) {
           const hasProgress = progress.percentage > 0;
           
           return (
-            <div 
-              key={progress.date} 
-              className={`
-                text-center p-2 rounded-lg transition-all duration-200
-                ${today 
-                  ? 'bg-primary-50 border-2 border-primary-200 shadow-sm' 
-                  : hasProgress 
-                    ? 'bg-gray-50 border border-gray-200' 
-                    : 'bg-white border border-gray-100'
-                }
-              `}
+            <ProgressPulse
+              key={progress.date}
+              trigger={progress.percentage === 100 && isToday(progress.dateObj)}
             >
+              <motion.div 
+                className={`
+                  text-center p-2 rounded-lg transition-all duration-200
+                  ${today 
+                    ? 'bg-primary-50 border-2 border-primary-200 shadow-sm' 
+                    : hasProgress 
+                      ? 'bg-gray-50 border border-gray-200' 
+                      : 'bg-white border border-gray-100'
+                  }
+                `}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.3,
+                  ease: [0.4, 0, 0.2, 1],
+                  delay: dates.indexOf(progress.dateObj) * 0.05,
+                }}
+              >
               {/* Day Name */}
               <div className={`text-[10px] font-semibold mb-2 ${
                 today ? 'text-primary-700' : 'text-gray-600'
@@ -147,7 +210,7 @@ function ProgressChart({ dates, habits, refreshKey = 0 }: ProgressChartProps) {
                     className={today ? 'text-primary-100' : 'text-gray-200'}
                   />
                   {/* Progress circle */}
-                  <circle
+                  <motion.circle
                     cx="18"
                     cy="18"
                     r="15"
@@ -155,7 +218,10 @@ function ProgressChart({ dates, habits, refreshKey = 0 }: ProgressChartProps) {
                     strokeWidth="2.5"
                     fill="none"
                     strokeDasharray={`${2 * Math.PI * 15}`}
-                    strokeDashoffset={`${2 * Math.PI * 15 * (1 - progress.percentage / 100)}`}
+                    initial={{ strokeDashoffset: 2 * Math.PI * 15 }}
+                    animate={{ 
+                      strokeDashoffset: `${2 * Math.PI * 15 * (1 - progress.percentage / 100)}` 
+                    }}
                     className={
                       isComplete 
                         ? 'text-success-500' 
@@ -164,34 +230,53 @@ function ProgressChart({ dates, habits, refreshKey = 0 }: ProgressChartProps) {
                           : 'text-primary-500'
                     }
                     strokeLinecap="round"
-                    style={{ transition: 'stroke-dashoffset 0.5s ease-out' }}
+                    transition={{
+                      duration: 0.6,
+                      ease: [0.4, 0, 0.2, 1],
+                    }}
                   />
                 </svg>
                 {/* Percentage in center */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="flex flex-col items-center">
-                    <span className={`text-xs font-bold ${
-                      today ? 'text-primary-700' : 'text-gray-700'
-                    }`}>
+                    <motion.span 
+                      className={`text-xs font-bold ${
+                        today ? 'text-primary-700' : 'text-gray-700'
+                      }`}
+                      key={Math.round(progress.percentage)}
+                      initial={{ scale: 1 }}
+                      animate={{ scale: [1, 1.15, 1] }}
+                      transition={{
+                        duration: 0.3,
+                        ease: [0.4, 0, 0.2, 1],
+                      }}
+                    >
                       {Math.round(progress.percentage)}%
-                    </span>
+                    </motion.span>
                   </div>
                 </div>
               </div>
               
               {/* Completed/Total */}
-              <div className={`
-                text-[10px] font-medium
-                ${isComplete 
-                  ? 'text-success-600' 
-                  : today 
-                    ? 'text-primary-600' 
-                    : 'text-gray-500'
-                }
-              `}>
+              <motion.div 
+                className={`
+                  text-[10px] font-medium
+                  ${isComplete 
+                    ? 'text-success-600' 
+                    : today 
+                      ? 'text-primary-600' 
+                      : 'text-gray-500'
+                  }
+                `}
+                key={`${progress.completed}-${progress.total}`}
+                initial={{ opacity: 0.5 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.2 }}
+              >
                 {progress.completed}/{progress.total}
-              </div>
-            </div>
+              </motion.div>
+              </motion.div>
+            </ProgressPulse>
           );
         })}
       </div>
